@@ -1,13 +1,39 @@
 #!/bin/bash
 
-if aws s3 cp eks-min.yaml s3://jd-system 1> /dev/null; then
+usage()
+{
+    echo "usage: deploy-eks-min.sh [[[-bn bucket-name] [-bu bucket-url]] | [-h]]"
+}
+
+CF_BUCKET_NAME=
+CF_BUCKET_URL=
+CF_SCRIPT_NAME=eks-min.yaml
+
+while [ "$1" != "" ]; do
+  case $1 in
+    -bn | --bucket-name )   shift
+                            CF_BUCKET_NAME=$1
+                            ;;
+    -bu | --bucket-url )    shift
+                            CF_BUCKET_URL=$1
+                            ;;
+    -h | --help )           usage
+                            exit
+                            ;;
+    * )                     usage
+                            exit 1
+  esac
+  shift
+done
+
+if aws s3 cp $CF_SCRIPT_NAME s3://$CF_BUCKET_NAME 1> /dev/null; then
   echo "Successfully uploaded eks-min.yaml file to S3 bucket"
 else
   echo "eks-min.yaml upload to S3 failed!"
   exit
 fi
 
-if aws cloudformation create-stack --stack-name eks-min --capabilities CAPABILITY_NAMED_IAM --template-url https://jd-system.s3.eu-central-1.amazonaws.com/eks-min.yaml 1> /dev/null; then
+if aws cloudformation create-stack --stack-name eks-min --capabilities CAPABILITY_NAMED_IAM --template-url $CF_BUCKET_URL/$CF_SCRIPT_NAME 1> /dev/null; then
   echo "Successfully initialized eks-min stack creation"
 else
   echo "eks-min stack creation failed!"
@@ -15,12 +41,18 @@ else
 fi
 
 #aws cloudformation delete-stack --stack-name eks-min
-while ! aws cloudformation describe-stacks --stack-name eks-min | grep StackStatus.*CREATE_COMPLETE 1> /dev/null;
+while aws cloudformation describe-stacks --stack-name eks-min | grep StackStatus.*CREATE_IN_PROGRESS 1> /dev/null;
 do
   sleep 1
   echo "Waiting for eks-min stack creation to complete..."
 done
-echo "eks-min stack successfully created"
+
+if aws cloudformation describe-stacks --stack-name eks-min | grep StackStatus.*CREATE_COMPLETE 1> /dev/null; then
+  echo "eks-min stack successfully created"
+else
+  echo "eks-min stack failed to create, check AWS console for details!"
+  exit
+fi
 
 aws eks --region eu-central-1 update-kubeconfig --name eks-min-cluster 
 
