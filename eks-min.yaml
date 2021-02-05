@@ -502,4 +502,14 @@ Outputs:
     Value: !GetAtt EksCluster.Endpoint
   NodeInstanceRoleArn:
     Value: !GetAtt NodeInstanceRole.Arn
+  VpcId:
+    Value: !Ref Vpc
+  PublicSubnet1:
+    Value: !Ref PublicSubnet1
+  PublicSubnet2:
+    Value: !Ref PublicSubnet2
+  PrivateSubnet1:
+    Value: !Ref PrivateSubnet1
+  PrivateSubnet2:
+    Value: !Ref PrivateSubnet2
 
